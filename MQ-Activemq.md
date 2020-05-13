@@ -24,16 +24,6 @@
 
 
 
-## 3 activemq中的事务？如何做消息确认
-A:
-https://www.cnblogs.com/SzeCheng/p/4792084.html
-
-## 4 activemq消息消费失败如何处理？
-A:
-https://blog.csdn.net/whiteforever/article/details/49929497
-
-
-
 ## 学习路线
 
 看看java如何直接调用activemq，在看看spring如何直接调用activemq，那么理解spring boot的调用就简单很多了。spring boot的auto config，配置了很多默认选项、以及template/listerner的实例化。
@@ -60,7 +50,21 @@ https://blog.csdn.net/whiteforever/article/details/49929497
 
 
 
+## 进阶
 
+
+## activemq中的事务？如何做消息确认
+A:
+https://www.cnblogs.com/SzeCheng/p/4792084.html
+
+## activemq消息消费失败如何处理？
+A:
+https://blog.csdn.net/whiteforever/article/details/49929497
+
+
+## activem的死信队列Dead LetterQueue有什么用？
+hint:
+http://activemq.apache.org/message-redelivery-and-dlq-handling.html
 
 ### reference
 
