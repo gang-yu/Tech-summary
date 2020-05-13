@@ -2,29 +2,35 @@
 
 
 
-基本安装，不说了。
+基本安装，直接执行官方文档的命令即可，不说了。
 
 
 
-#0 java中使用activemq
+## 0 java中使用activemq
 
 [Java消息队列--ActiveMq 初体验](https://www.cnblogs.com/jaycekon/p/6225058.html)
 
 
 
-#1 spring中使用 activemq
+## 1 spring中使用 activemq
 
 [Java消息队列-Spring整合ActiveMq](https://www.cnblogs.com/jaycekon/p/ActiveMq.html)
 
 
 
-#2 spring boot中使用activemq
+## 2 spring boot中使用activemq
 
 [spring boot整合JMS(ActiveMQ实现)](https://blog.csdn.net/liuchuanhong1/article/details/54603546)
 
 
 
-#3 难点-
+## 3 activemq中的事务？如何做消息确认
+A:
+https://www.cnblogs.com/SzeCheng/p/4792084.html
+
+## 4 activemq消息消费失败如何处理？
+A:
+https://blog.csdn.net/whiteforever/article/details/49929497
 
 
 
@@ -34,7 +40,7 @@
 
 
 
-#3 真的看明白了么？
+## 真的看明白了么？
 
 看完上面3篇，你大致理解了么？好！那么，请问回答几个基础问题。
 
