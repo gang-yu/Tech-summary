@@ -66,6 +66,15 @@ https://blog.csdn.net/whiteforever/article/details/49929497
 hint:
 http://activemq.apache.org/message-redelivery-and-dlq-handling.html
 
+## activemq接受消息方法中，receive与MessageListerner的onMessage有什么区别？
+hint:
+从阻塞、异步的角度来思考。
+A:
+receive是blocking的。
+它一直在等待下一个消息。只要读取到消息，才会返回。同时，它只要处理当前的消息才会去读取下一条。
+onMessage是异步的。
+只有在有消息到来的时候才会被调用。
+
 ### reference
 
 activeMQ - spring support官网 http://activemq.apache.org/spring-support.html
