@@ -20,9 +20,11 @@ A：
 如果消息发送成功而DB失败，会出现一致性问题。
 Db->发送消息：
 如果DB成功而消息发送失败，可以进行DB的补偿或者回滚，从而保证一致性。
-这需要在生产者/消费者两端都增加DB表来对应待发送、已收取的消息。如下是一个他人的实现。
-https://github.com/zjpjohn/ActiveMQ
+这需要在生产者/消费者两端都增加DB表来对应待发送、已收取的消息。
 
+如下是一个他人针对activemq的实现。
+https://github.com/zjpjohn/ActiveMQ
+这个repo中，分3步来解决：事务消息只存入DB，事务成功时将DB数据信息key存入本地cache，本地cache/定时任务触发DB数据发送到MQ。
 
 ## 如何保证消息不丢失？
 hint：
@@ -47,3 +49,21 @@ hint：
 比如，OA审批流程的消息，前一个节点消息是后一个节点的判断依据。
 hint
 我想想，这个有点搞大了
+
+## MQ如果要做HA高可用高并发，该怎么做？
+Ans:
+https://blog.csdn.net/shuangzh115/article/details/50989182
+单mq broker，有单点，不是高可用。
+master/slave 主从broker，能够实现HA, 避免单点故障。但是处理能力并没有增加。在master因为高负荷而down，那么slave切换为主时，也会很快挂掉，只是时间问题。
+一个办法是activemq集群。多activemq broker同时工作，每个topic在多个boker上都有。1到2个mq实例出现问题时，消息可经过其他broker处理，整个系统依然可以健康工作，从而实现高可用。采用轮循方式给多个broker发送消息，并发能力也能提升。
+如下是一个参考实现
+https://gitee.com/shuangzh/toolkit/tree/master/toolkit/src/main/java/com/shuangzh/toolkit/activemq
+
+
+### refrene
+https://github.com/zjpjohn/ActiveMQ
+https://blog.csdn.net/shuangzh115/article/details/50989182
+综合这两个可以看出来，可以研发一个activemq中间件，他封装如下功能：
+1. 存储消息到DB，做到消息与db的事务一致性
+2. 事务完成/定时任务触发消息到本地cache
+3. 本地cache触发mq broker路由、以及消息发送MQ
