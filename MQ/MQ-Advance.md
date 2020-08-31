@@ -59,17 +59,6 @@ hint
 
 
 
-## MQ如果要做HA高可用高并发，该怎么做？
-Ans:
-https://blog.csdn.net/shuangzh115/article/details/50989182
-单mq broker，有单点，不是高可用。
-master/slave 主从broker，能够实现HA, 避免单点故障。但是处理能力并没有增加。在master因为高负荷而down，那么slave切换为主时，也会很快挂掉，只是时间问题。
-一个办法是activemq集群。多activemq broker同时工作，每个topic在多个boker上都有。1到2个mq实例出现问题时，消息可经过其他broker处理，整个系统依然可以健康工作，从而实现高可用。采用轮循方式给多个broker发送消息，并发能力也能提升。
-如下是一个参考实现
-https://gitee.com/shuangzh/toolkit/tree/master/toolkit/src/main/java/com/shuangzh/toolkit/activemq
-
-
-
 ## rocketmq怎么保证队列完全顺序消费？
 
 Ans:
@@ -95,3 +84,18 @@ https://blog.csdn.net/shuangzh115/article/details/50989182
 1. 存储消息到DB，做到消息与db的事务一致性
 2. 事务完成/定时任务触发消息到本地cache
 3. 本地cache触发mq broker路由、以及消息发送MQ
+
+
+
+## activeMQ如果要做HA高可用高并发，该怎么做？
+
+Ans:
+https://blog.csdn.net/shuangzh115/article/details/50989182
+单mq broker，有单点，不是高可用。
+master/slave 主从broker，能够实现HA, 避免单点故障。但是处理能力并没有增加。在master因为高负荷而down，那么slave切换为主时，也会很快挂掉，只是时间问题。
+一个办法是activemq集群。多activemq broker同时工作，每个topic在多个boker上都有。1到2个mq实例出现问题时，消息可经过其他broker处理，整个系统依然可以健康工作，从而实现高可用。采用轮循方式给多个broker发送消息，并发能力也能提升。
+如下是一个参考实现
+https://gitee.com/shuangzh/toolkit/tree/master/toolkit/src/main/java/com/shuangzh/toolkit/activemq
+
+ 不过说实话，这个方案有点像rocketMQ的实现机制了。
+
