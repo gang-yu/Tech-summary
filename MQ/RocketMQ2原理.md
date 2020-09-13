@@ -8,8 +8,8 @@
 
 - Name Server：是一个几乎无状态节点，可集群部署，在消息队列 RocketMQ 版中提供命名服务，更新和发现 Broker 服务。
 - Broker：消息中转角色，负责存储消息，转发消息。分为 Master Broker 和 Slave Broker，一个 Master Broker 可以对应多个 Slave Broker，但是一个 Slave Broker 只能对应一个 Master Broker。Broker 启动后需要完成一次将自己注册至 Name Server 的操作；随后每隔 30s 定期向 Name Server 上报 Topic 路由信息。
-- 生产者：与 Name Server 集群中的其中一个节点（随机）建立长链接（Keep-alive），定期从 Name Server 读取 Topic 路由信息，并向提供 Topic 服务的 Master Broker 建立长链接，且定时向 Master Broker 发送心跳。
-- 消费者：与 Name Server 集群中的其中一个节点（随机）建立长连接，定期从 Name Server 拉取 Topic 路由信息，并向提供 Topic 服务的 Master Broker、Slave Broker 建立长连接，且定时向 Master Broker、Slave Broker 发送心跳。Consumer 既可以从 Master Broker 订阅消息，也可以从 Slave Broker 订阅消息，订阅规则由 Broker 配置决定。
+- 生产者：与 Name Server 集群中的**其中一个**节点（随机）建立长链接（Keep-alive），定期从 Name Server 读取 Topic 路由信息，并向提供 Topic 服务的 **Master Broker 建立长链接**，且定时向 Master Broker 发送心跳。
+- 消费者：与 Name Server 集群中的**其中一个**节点（随机）建立长连接，定期从 Name Server 拉取 Topic 路由信息，并向提供 Topic 服务的 **Master Broker、Slave Broker 建立长连接**，且定时向 Master Broker、Slave Broker 发送心跳。Consumer 既可以从 Master Broker 订阅消息，也可以从 Slave Broker 订阅消息，订阅规则由 Broker 配置决定。
 
 
 
@@ -35,7 +35,7 @@ https://github.com/apache/rocketmq/blob/master/docs/cn/architecture.md
 
 **NameServer Cluster**
 
-Name Servers provide lightweight service discovery and routing. Each Name Server records full routing information, provides corresponding reading and writing service, and supports fast storage expansion.
+Name Servers provide lightweight service discovery and routing. **Each** Name Server records **full** routing information, provides corresponding reading and writing service, and supports fast storage expansion.
 
 NameServer is a fully functional server, which mainly includes two features:
 
@@ -140,7 +140,7 @@ ans:
 
   * 不支持master/salver选举
 
-    从RocketMQ的架构设计中可以看到起优雅之处，组件均设计为无状态，所以它强大到可以任何扩展某个一个点。
+    从RocketMQ的架构设计中可以看到起优雅之处，组件均设计为**无状态**，所以它强大到可以任何扩展某个一个点。
 
     比如当发现broker压力较大时，可独立扩展broker，只需要将broker地址注册到namesrv中即可。namesrv检测到来自broker的心跳检测后，会将broker信息保存在可用broker列表中。不管是消费者还是生产者，都会按照某个负载均衡算法去选择broker地址。当其中一台broker机器宕机后，namesrv不会顷刻间摘除心跳检测（多次无心跳检测才会摘除），而生产者/消费者亦会有轮询的方式，在数次请求无果后，会从可用列表中将该broker剔除掉，并将请求转发到另外的机器上。
 
@@ -217,10 +217,8 @@ Broker的高并发读写主要是依靠以下两点：
 负载均衡：Broker上存Topic信息，Topic由多个队列组成，队列会平均分散在多个Broker上，而Producer的发送机制保证消息尽量平均分布到所有队列中，最终效果就是所有消息都平均落在每个Broker上。
 动态伸缩能力（非顺序消息）：Broker的伸缩性体现在两个维度：Topic, Broker。
 
- 
-
-Topic维度：假如一个Topic的消息量特别大，但集群水位压力还是很低，就可以扩大该Topic的队列数，Topic的队列数跟发送、消费速度成正比。
-Broker维度：如果集群水位很高了，需要扩容，直接加机器部署Broker就可以。Broker起来后向Namesrv注册，Producer、Consumer通过Namesrv发现新Broker，立即跟该Broker直连，收发消息。
+​		Topic维度：假如一个Topic的消息量特别大，但集群水位压力还是很低，就可以扩大该Topic的队列数，Topic的队列数跟发送、消费速度成正比。
+​		Broker维度：如果集群水位很高了，需要扩容，直接加机器部署Broker就可以。Broker起来后向Namesrv注册，Producer、Consumer通过Namesrv发现新Broker，立即跟该Broker直连，收发消息。
 3，高可用&高可靠
 高可用：集群部署时一般都为主备，备机实时从主机同步消息，如果其中一个主机宕机，备机提供消费服务，但不提供写服务。
 高可靠：所有发往broker的消息，有同步刷盘和异步刷盘机制；同步刷盘时，消息写入物理文件才会返回成功，异步刷盘时，只有机器宕机，才会产生消息丢失，broker挂掉可能会发生，但是机器宕机崩溃是很少发生的，除非突然断电
@@ -232,7 +230,7 @@ Broker维度：如果集群水位很高了，需要扩容，直接加机器部�
 
 Ans：
 
-RocketMq都是分布式无状态设计，可以高度扩展。
+RocketMq都是**分布式无状态设计，可以高度扩展**。
 
 * broker是以group为单位提供服务。
 
