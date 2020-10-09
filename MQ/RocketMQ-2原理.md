@@ -110,16 +110,131 @@ Consumer可以与Master或者Slave的Broker建立TCP连接来进行消费消息�
 
 
 
+## 消息可靠性
+
+RocketMQ支持消息的高可靠，影响消息可靠性的几种情况：
+
+1. Broker非正常关闭
+2. Broker异常Crash
+3. OS Crash
+4. 机器掉电，但是能立即恢复供电情况
+5. 机器无法开机（可能是cpu、主板、内存等关键设备损坏）
+6. 磁盘设备损坏
+
+1)、2)、3)、4) 四种情况都属于硬件资源可立即恢复情况，RocketMQ在这四种情况下能保证消息不丢，或者丢失少量数据（依赖刷盘方式是同步还是异步）。
+
+5)、6)属于单点故障，且无法恢复，一旦发生，在此单点上的消息全部丢失。RocketMQ在这两种情况下，通过异步复制，可保证99%的消息不丢，但是仍然会有极少量的消息可能丢失。通过同步双写技术可以完全避免单点，同步双写势必会影响性能，适合对消息可靠性要求极高的场合，例如与Money相关的应用。注：RocketMQ从3.0版本开始支持同步双写。
+
+https://github.com/apache/rocketmq/blob/master/docs/cn/features.md
 
 
-### RocketMq的一些常见问题
 
-ans:
+## 消息重投
+
+生产者在发送消息时，同步消息失败会重投，异步消息有重试，oneway没有任何保证。消息重投保证消息尽可能发送成功、不丢失，但可能会造成消息重复，消息重复在RocketMQ中是无法避免的问题。消息重复在一般情况下不会发生，当出现消息量大、网络抖动，消息重复就会是大概率事件。另外，生产者主动重发、consumer负载变化也会导致重复消息。如下方法可以设置消息重试策略：
+
+- retryTimesWhenSendFailed:同步发送失败重投次数，默认为2，因此生产者会最多尝试发送retryTimesWhenSendFailed + 1次。不会选择上次失败的broker，尝试向其他broker发送，最大程度保证消息不丢。超过重投次数，抛出异常，由客户端保证消息不丢。当出现RemotingException、MQClientException和部分MQBrokerException时会重投。
+- retryTimesWhenSendAsyncFailed:异步发送失败重试次数，异步重试不会选择其他broker，仅在同一个broker上做重试，不保证消息不丢。
+- retryAnotherBrokerWhenNotStoreOK:消息刷盘（主或备）超时或slave不可用（返回状态非SEND_OK），是否尝试发送到其他broker，默认false。十分重要消息可以开启。
+
+## 流量控制
+
+生产者流控，因为broker处理能力达到瓶颈；消费者流控，因为消费能力达到瓶颈。
+
+生产者流控：
+
+- commitLog文件被锁时间超过osPageCacheBusyTimeOutMills时，参数默认为1000ms，返回流控。
+- 如果开启transientStorePoolEnable == true，且broker为异步刷盘的主机，且transientStorePool中资源不足，拒绝当前send请求，返回流控。
+- broker每隔10ms检查send请求队列头部请求的等待时间，如果超过waitTimeMillsInSendQueue，默认200ms，拒绝当前send请求，返回流控。
+- broker通过拒绝send 请求方式实现流量控制。
+
+注意，生产者流控，不会尝试消息重投。
+
+消费者流控：
+
+- 消费者本地缓存消息数超过pullThresholdForQueue时，默认1000。
+- 消费者本地缓存消息大小超过pullThresholdSizeForQueue时，默认100MB。
+- 消费者本地缓存消息跨度超过consumeConcurrentlyMaxSpan时，默认2000。
+
+消费者流控的结果是降低拉取频率。
+
+
+
+## 死信队列
+
+（场景）在当正常业务处理时出现异常时，将消息拒绝则会进入到死信队列中，有助于统计异常数据并做后续的数据修复处理。
+
+（产生）消费端，一直不回传消费的结果。rocketmq认为消息没收到，consumer下一次拉取，broker依然会发送该消息。
+
+所以，任何异常都要返回ConsumeConcurrentlyStatus.RECONSUME_LATER，这样MQ会将消息放到重试队列。
+
+这个重试TOPIC的名字是%RETRY%+consumergroup的名字
+
+重试的消息在延迟的某个时间点（默认是10秒，业务可设置）后，再次投递到这个ConsumerGroup。而如果一直这样重复消费都持续失败到一定次数（默认16次），就会投递到DLQ死信队列重试队列在重试16次（默认次数）将消息放入死信队列
+
+（解决）死信队列中的数据需要通过新订阅该topic进行消费。
+
+
+
+## rocketMQ消息存储
+
+CommitLog 消息主体以及元数据的存储主体
+
+​		文件大小默认1G ，文件名长度为20位，左边补零，剩余为起始偏移量
+
+​		当文件满了，写入下一个CommitLog文件
+
+ConsumeQueue 消息消费队列
+
+​		可以看成是基于topic的commitlog索引文件，保存了指定Topic下的队列消息在CommitLog中的起始物理偏移量offset，消息大小size和消息Tag的HashCode值
+
+​		同样consumequeue文件采取定长设计，每一个条目共20个字节，分别为8字节的commitlog物理偏移量、4字节的消息长度、8字节tag hashcode，单个文件由30W个条目组成，可以像数组一样随机访问每一个条目，每个ConsumeQueue文件大小约5.72M
+
+https://github.com/apache/rocketmq/blob/master/docs/cn/design.md
+
+
+
+**消息消费的含义**
+
+ 在RoketMQ中大家通常所说的“消费”是两个步骤的统称，这两个步骤是：
+
+ 1） Consumer从Broker拉取消息到本地，并保存到本地的消息缓存队列(ProcessQueue)。这个步骤中，消费的主体是RocketMQ的Consumer模块。
+
+  不论是拉消息还是推消息模式，底层的实现都是由Consumer从Broker拉取消息。
+
+ 2） Consumer从本地的消息缓存队列取出消息，并调用上层应用程序指定的回调函数对消息进行处理。这个步骤中，消费的主体是上层应用程序。
+
+
+
+**消息消费模式**
+
+ 从不同的维度划分，Consumer支持以下消费模式：
+
+ **1.**   **广播消费****vs.** **集群消费**
+
+  广播消费模式下，消息消费失败不会进行重试，消费进度保存在Consumer端；集群消费模式下，消息消费失败有机会进行重试，消费进度集中保存在Broker端。
+
+ **2.**   **拉消息****vs.** **推消息**
+
+  推消息模式下，消费进度的递增是由RocketMQ内部自动维护的；拉消息模式下，消费进度的变更需要上层应用自己负责维护，RocketMQ只提供消费进度保存和查询功能。
+
+ **3.**   **顺序消费****vs.** **并行消费**
+
+  只有推消息模式才可以被进一步划分为顺序消费和并行消费模式。
+
+  不同维度分类的消息消费方式可以进行排列组合，某些组合无效。其中：广播消费或集群消费+**推消息**+顺序消费或并行消费是有效组合；广播消费或集群消费+**拉消息**+顺序消费或并行消费是无效组合。
+
+
+
+### RocketMq原理上的坑
+
+不掌握这些知识点，很可能会坑了自己。
 
 * Name servers
+  
   * Broker向Namesr发心跳时，会带上当前自己所负责的所有Topic信息，如果Topic个数太多（万级别），会导致一次心跳中，就Topic的数据就几十M，网络情况差的话，网络传输失败，心跳失败，导致Namesrv误认为Broker心跳失败。
-  * 服务注册与发现组件namesrv可以独立部署，且namesrv与namesrv之间并无直接或间接的关联，双方不存在心跳检测，所以namesrv的之间不存在主备切换过程，如果其中一台namesrv宕机后，生产者消费者会直接从另一台namesrv中请求数据。但也正因为namesrv之间不存在心跳检测，主备切换，所以无法支持动态扩容，当机器宕机需要重新部署基于新的ip地址的namesrv需要更新生产者/消费者直连的namesrv地址。
-
+* 服务注册与发现组件namesrv可以独立部署，且namesrv与namesrv之间并无直接或间接的关联，双方不存在心跳检测，所以namesrv的之间不存在主备切换过程，如果其中一台namesrv宕机后，生产者消费者会直接从另一台namesrv中请求数据。但也正因为namesrv之间不存在心跳检测，主备切换，所以无法支持动态扩容，当机器宕机需要重新部署基于新的ip地址的namesrv需要更新生产者/消费者直连的namesrv地址。
+  
 * Broker servers
 
   * broker支持主从架构模式，但是并非是非常完善的主从架构，据说会在后续版本中优化。
@@ -284,4 +399,4 @@ https://blog.csdn.net/qq_14957991/java/article/details/89873539
 
   涵盖，概念、特性、架构、设计。
 
-* 
+* 官方核心设计 https://github.com/apache/rocketmq/blob/master/docs/cn/design.md

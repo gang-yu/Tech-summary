@@ -95,7 +95,15 @@ https://github.com/apache/rocketmq/blob/master/docs/cn/features.md
 > 
 > 上面这些术语**你都懂了么？**
 
+深入理解源码需要理解的术语
 
+> page cache页缓存
+>
+> ​			OS对文件的缓存。在读取CommitLog，会预读取多一点的消息到page cache；写入CommitLog，也是先写入page cache，然后刷盘到disk。
+>
+> process queue
+>
+> ​			consume拉取消息的本地缓存queue
 
 
 
